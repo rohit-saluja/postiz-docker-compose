@@ -1,14 +1,13 @@
 services:
   postiz:
     image: ghcr.io/gitroomhq/postiz-app:latest
-    container_name: postiz
     restart: always
+    env_file:
+      - postiz.env
     environment:
       # === Required Settings
       MAIN_URL: 'http://localhost:4007'
-      FRONTEND_URL: 'http://localhost:4007'
       NEXT_PUBLIC_BACKEND_URL: 'http://localhost:4007/api'
-      JWT_SECRET: 'random string that is unique to every install - just type random characters here!'
       DATABASE_URL: 'postgresql://postiz-user:postiz-password@postiz-postgres:5432/postiz-db-local'
       REDIS_URL: 'redis://postiz-redis:6379'
       BACKEND_INTERNAL_URL: 'http://localhost:3000'
@@ -34,8 +33,6 @@ services:
       # === Social Media API Settings
       X_API_KEY: ''
       X_API_SECRET: ''
-      LINKEDIN_CLIENT_ID: ''
-      LINKEDIN_CLIENT_SECRET: ''
       REDDIT_CLIENT_ID: ''
       REDDIT_CLIENT_SECRET: ''
       GITHUB_CLIENT_ID: ''
@@ -44,14 +41,8 @@ services:
       BEEHIIVE_PUBLICATION_ID: ''
       THREADS_APP_ID: ''
       THREADS_APP_SECRET: ''
-      FACEBOOK_APP_ID: ''
-      FACEBOOK_APP_SECRET: ''
-      YOUTUBE_CLIENT_ID: ''
-      YOUTUBE_CLIENT_SECRET: ''
       TIKTOK_CLIENT_ID: ''
       TIKTOK_CLIENT_SECRET: ''
-      PINTEREST_CLIENT_ID: ''
-      PINTEREST_CLIENT_SECRET: ''
       DRIBBBLE_CLIENT_ID: ''
       DRIBBBLE_CLIENT_SECRET: ''
       DISCORD_CLIENT_ID: ''
@@ -112,6 +103,9 @@ services:
     volumes:
       - postiz-config:/config/
       - postiz-uploads:/uploads/
+      # LinkedIn now requires separate apps for member sharing and Page management.
+      - ./overrides/linkedin/linkedin.provider.js:/app/apps/backend/dist/libraries/nestjs-libraries/src/integrations/social/linkedin.provider.js:ro
+      - ./overrides/linkedin/linkedin.page.provider.js:/app/apps/backend/dist/libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.js:ro
     ports:
       - "4007:5000"
     networks:
@@ -133,7 +127,6 @@ services:
 
   postiz-postgres:
     image: postgres:17-alpine
-    container_name: postiz-postgres
     restart: always
     environment:
       POSTGRES_PASSWORD: postiz-password
@@ -151,7 +144,6 @@ services:
       start_period: 10s
   postiz-redis:
     image: redis:7.2
-    container_name: postiz-redis
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
@@ -168,7 +160,6 @@ services:
   spotlight:
     profiles: [debug]
     pull_policy: always
-    container_name: spotlight
     restart: unless-stopped
     ports:
       - 127.0.0.1:8969:8969/tcp
@@ -180,7 +171,6 @@ services:
   # Temporal Stack
   # -----------------------
   temporal-elasticsearch:
-    container_name: temporal-elasticsearch
     image: elasticsearch:7.17.27
     restart: always
     environment:
@@ -205,7 +195,6 @@ services:
       - temporal-elasticsearch-data:/usr/share/elasticsearch/data
 
   temporal-postgresql:
-    container_name: temporal-postgresql
     image: postgres:16
     restart: always
     environment:
@@ -225,7 +214,6 @@ services:
       - temporal-postgres-data:/var/lib/postgresql/data
 
   temporal:
-    container_name: temporal
     restart: always
     ports:
       - '127.0.0.1:7233:7233'
@@ -260,7 +248,6 @@ services:
       kompose.volume.type: configMap
 
   temporal-admin-tools:
-    container_name: temporal-admin-tools
     image: temporalio/admin-tools:1.28.1-tctl-1.18.4-cli-1.4.1
     restart: on-failure
     environment:
@@ -275,7 +262,6 @@ services:
     tty: true
 
   temporal-ui:
-    container_name: temporal-ui
     image: temporalio/ui:2.34.0
     restart: always
     environment:
@@ -319,4 +305,4 @@ networks:
     external: false
   temporal-network:
     driver: bridge
-    name: temporal-network
+    name: postiz-local-temporal-network

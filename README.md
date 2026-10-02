@@ -22,7 +22,11 @@ of configuration settings.
 Setup:
 ```
 git clone https://github.com/gitroomhq/postiz-docker-compose
+cd postiz-docker-compose
+cp postiz.env.example postiz.env
 ```
+
+Fill `postiz.env` with a unique JWT secret, your public OAuth callback URL, and the credentials for the social providers you want to connect.
 
 Then run:
 ```
