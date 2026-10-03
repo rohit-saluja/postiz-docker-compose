@@ -1,2 +1,41 @@
 .vscode
 postiz.env
+cloudflared.env
+
+# Only Postiz configuration is versioned (compose files, overrides, dynamicconfig, scripts, README).
+# Everything generated for Active Recalling content stays local.
+
+# Claude Code worktrees, scratch output and knowledge graphs
+.claude/
+graphify-out/
+
+# Video projects (HyperFrames compositions, captures, recordings, renders, pins)
+videos/
+renders/
+recordings/
+snapshots/
+.media/
+.thumbnails/
+
+# Generated media
+*.mp4
+*.mov
+*.m4v
+*.webm
+*.mkv
+*.gif
+*.wav
+*.m4a
+*.mp3
+*.aac
+*.flac
+*.ogg
+*.recordly
+*.cursor.json
+
+# Generated images (pins, covers, thumbnails, profile art). Files already tracked under branding/ stay tracked.
+branding/
+*.png
+*.jpg
+*.jpeg
+*.webp

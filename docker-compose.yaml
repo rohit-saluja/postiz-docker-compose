@@ -2,18 +2,21 @@ services:
   postiz:
     image: ghcr.io/gitroomhq/postiz-app:latest
     restart: always
+    # Image default is `nginx && pnpm run pm2`; patch the preview player first (see overrides/preview-player).
+    command: ["sh", "-c", "sh /opt/postiz-overrides/patch-preview-player.sh; nginx && pnpm run pm2"]
     env_file:
       - postiz.env
     environment:
       # === Required Settings
-      MAIN_URL: 'http://localhost:4007'
-      NEXT_PUBLIC_BACKEND_URL: 'http://localhost:4007/api'
+      # MAIN_URL, NEXT_PUBLIC_BACKEND_URL and FRONTEND_URL are set in postiz.env: the public
+      # https address served by postiz-tunnel, kept out of this public repo.
       DATABASE_URL: 'postgresql://postiz-user:postiz-password@postiz-postgres:5432/postiz-db-local'
       REDIS_URL: 'redis://postiz-redis:6379'
       BACKEND_INTERNAL_URL: 'http://localhost:3000'
       TEMPORAL_ADDRESS: "temporal:7233"
       IS_GENERAL: 'true'
-      DISABLE_REGISTRATION: 'false'
+      # Postiz is reachable from the internet, so no new sign-ups.
+      DISABLE_REGISTRATION: 'true'
       RUN_CRON: 'true'
 
       # === Storage Settings
@@ -106,6 +109,21 @@ services:
       # LinkedIn now requires separate apps for member sharing and Page management.
       - ./overrides/linkedin/linkedin.provider.js:/app/apps/backend/dist/libraries/nestjs-libraries/src/integrations/social/linkedin.provider.js:ro
       - ./overrides/linkedin/linkedin.page.provider.js:/app/apps/backend/dist/libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.js:ro
+      # Instagram downloads media by URL, so local upload URLs are published under MAIN_URL.
+      - ./overrides/instagram/instagram.provider.js:/app/apps/backend/dist/libraries/nestjs-libraries/src/integrations/social/instagram.provider.js:ro
+      - ./overrides/instagram/instagram.provider.js:/app/apps/orchestrator/dist/libraries/nestjs-libraries/src/integrations/social/instagram.provider.js:ro
+      # Facebook and Pinterest fetch media by URL too; send local uploads as bytes instead.
+      - ./overrides/facebook/facebook.provider.js:/app/apps/backend/dist/libraries/nestjs-libraries/src/integrations/social/facebook.provider.js:ro
+      - ./overrides/facebook/facebook.provider.js:/app/apps/orchestrator/dist/libraries/nestjs-libraries/src/integrations/social/facebook.provider.js:ro
+      - ./overrides/pinterest/pinterest.provider.js:/app/apps/backend/dist/libraries/nestjs-libraries/src/integrations/social/pinterest.provider.js:ro
+      - ./overrides/pinterest/pinterest.provider.js:/app/apps/orchestrator/dist/libraries/nestjs-libraries/src/integrations/social/pinterest.provider.js:ro
+      # Token refresh re-saves the channel avatar; reuse local uploads so a refresh can't fail on it.
+      - ./overrides/local-storage/local.storage.js:/app/apps/backend/dist/libraries/nestjs-libraries/src/upload/local.storage.js:ro
+      - ./overrides/local-storage/local.storage.js:/app/apps/orchestrator/dist/libraries/nestjs-libraries/src/upload/local.storage.js:ro
+      # Reconnecting a channel (e.g. YouTube) dropped the new refresh token; keep it.
+      - ./overrides/reconnect/no.auth.integrations.controller.js:/app/apps/backend/dist/apps/backend/src/api/routes/no.auth.integrations.controller.js:ro
+      # Post previews get player controls so their audio can be played.
+      - ./overrides/preview-player/patch-preview-player.sh:/opt/postiz-overrides/patch-preview-player.sh:ro
     ports:
       - "4007:5000"
     networks:
@@ -153,6 +171,19 @@ services:
       start_period: 5s
     volumes:
       - postiz-redis-data:/data
+    networks:
+      - postiz-network
+
+  # Permanent public address: a Cloudflare named tunnel publishes Postiz at MAIN_URL.
+  # OAuth callbacks, the browser, and platforms that download media (Instagram) all use it, so
+  # no ngrok or quick tunnel is needed. The route (<public host> -> http://postiz:5000) is set
+  # on the tunnel in the Cloudflare dashboard; its token is TUNNEL_TOKEN in cloudflared.env.
+  postiz-tunnel:
+    image: cloudflare/cloudflared:2026.9.3
+    restart: always
+    command: ["tunnel", "--no-autoupdate", "run"]
+    env_file:
+      - cloudflared.env
     networks:
       - postiz-network
 
